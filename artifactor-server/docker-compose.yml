@@ -1,0 +1,9 @@
+version: '3'
+services:
+  artifact:
+    image: artifactor-server
+    build: .
+    ports:
+     - "8000:8000"
+    volumes:
+        - ../../artifacts:/artifacts
