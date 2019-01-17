@@ -24,3 +24,10 @@ RUN /rti/rti_connext_dds-6.0.0/bin/rtipkginstall -unattended rti_connext_dds-6.0
 # Download and install CMake 3.13.3
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.13.3/cmake-3.13.3-Linux-x86_64.tar.gz
 RUN mkdir cmake && tar -xvzf cmake-3.13.3-Linux-x86_64.tar.gz  -C /usr/local --strip-components=1
+
+# Build the Routing Service processor
+ENV NDDSHOME /rti/rti_connext_dds-6.0.0/
+COPY src /src
+RUN mkdir /build
+WORKDIR /build
+RUN cmake /src -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=1 && cmake --build .
