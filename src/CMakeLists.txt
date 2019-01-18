@@ -46,3 +46,24 @@ set_target_properties(${target_name}
     PROPERTIES
         CXX_STANDARD 11
 )
+
+add_custom_target(routing_service_xml
+    DEPENDS
+        "${CMAKE_CURRENT_BINARY_DIR}/RsShapesProcessor.xml"
+)
+
+add_custom_command(
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/RsShapesProcessor.xml"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/RsShapesProcessor.xml"
+            "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMENT "Copying RsShapesProcessor.xml"
+    DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/RsShapesProcessor.xml"
+    VERBATIM
+)
+
+add_dependencies(shapesprocessor
+    routing_service_xml
+)
