@@ -99,9 +99,43 @@ COPY --from=builder \
 COPY --from=builder \
         /rti/rti_connext_dds-6.0.0/resource/app/lib/x64Linux2.6gcc4.4.5/ \
         /rti/rti_connext_dds-6.0.0/resource/app/lib/x64Linux2.6gcc4.4.5/
+
 COPY --from=builder \
-        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/ \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/librtiroutingservice.so \
         /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/librticonnextmsgc.so \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/librtidlc.so \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/libnddsmetp.so \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/libnddsc.so \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/resource/app/lib/x64Linux2.6gcc4.4.5/librtixml2.so \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/libnddscore.so \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/libnddscpp2.so \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/librtirsinfrastructure.so \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+
+
 COPY --from=builder /src/RsShapesProcessor.xml /rti
 
 COPY --from=builder \
@@ -113,6 +147,10 @@ FROM ubuntu:18.04 as deploy
 COPY --from=pre-deploy \
         /rti \
         /rti
+
+RUN groupadd -g 999 rtiuser && \
+    useradd -r -u 999 -g rtiuser rtiuser
+USER rtiuser
 
 ENV PATH /rti/rti_connext_dds-6.0.0/bin/:$PATH
 ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
