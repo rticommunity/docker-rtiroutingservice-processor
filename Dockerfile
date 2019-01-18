@@ -9,6 +9,12 @@
 #===========================================================================#
 FROM ubuntu:18.04 as builder
 
+# Where the dependencies manager server is located
+ARG ARTIFACTS_SERVER=http://localhost:8000
+
+# The ConnextDDS installation will be done here
+ENV NDDSHOME /rti/rti_connext_dds-6.0.0
+
 #-------------------------------------------------------------------#
 #----------------------- Install third party -----------------------#
 #-------------------------------------------------------------------#
@@ -17,8 +23,7 @@ RUN apt update && \
     apt install -y --no-install-recommends \
         wget \
         build-essential \
-        ca-certificates && \
-    mkdir rti_artifacts
+        ca-certificates
 
 # Download and install CMake 3.13.3
 # We need to download it from the official website because the version provided
@@ -33,8 +38,9 @@ RUN mkdir cmake && \
 #----------------------- Install ConnextDDS ------------------------#
 #-------------------------------------------------------------------#
 # Download and install RTI host bundle
-WORKDIR rti_artifacts
-RUN wget http://localhost:8000/rti_connext_dds-6.0.0-pro-host-x64Linux.run
+RUN mkdir /rti_artifacts
+WORKDIR /rti_artifacts
+RUN wget $ARTIFACTS_SERVER/rti_connext_dds-6.0.0-pro-host-x64Linux.run
 RUN chmod +x rti_connext_dds-6.0.0-pro-host-x64Linux.run
 RUN ./rti_connext_dds-6.0.0-pro-host-x64Linux.run \
         --mode unattended \
@@ -44,18 +50,18 @@ RUN ./rti_connext_dds-6.0.0-pro-host-x64Linux.run \
 
 # Donwload and install the target bundle for x64Linux4gcc7.3.0
 RUN wget \
-    http://localhost:8000/rti_connext_dds-6.0.0-pro-target-x64Linux4gcc7.3.0.rtipkg
-RUN /rti/rti_connext_dds-6.0.0/bin/rtipkginstall \
+    $ARTIFACTS_SERVER/rti_connext_dds-6.0.0-pro-target-x64Linux4gcc7.3.0.rtipkg
+RUN $NDDSHOME/bin/rtipkginstall \
     -unattended rti_connext_dds-6.0.0-pro-target-x64Linux4gcc7.3.0.rtipkg
 
 #-------------------------------------------------------------------#
 #--------------------- Build the RS processor ----------------------#
 #-------------------------------------------------------------------#
-ENV NDDSHOME /rti/rti_connext_dds-6.0.0
 
 # Add the source code from the host machine
 COPY src /src
 
+# Generate the build system with CMake and build
 RUN mkdir /build && \
     cmake \
         -S /src \
@@ -63,3 +69,53 @@ RUN mkdir /build && \
         -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_SHARED_LIBS=1 && \
     cmake --build /build
+
+FROM ubuntu:18.04 as pre-deploy
+RUN mkdir -p \
+        /rti/rti_connext_dds-6.0.0/ \
+        /rti/rti_connext_dds-6.0.0/bin/ \
+        /rti/rti_connext_dds-6.0.0/resource/scripts/ \
+        /rti/rti_connext_dds-6.0.0/resource/app/bin/x64Linux2.6gcc4.4.5/ \
+        /rti/rti_connext_dds-6.0.0/resource/app/ \
+        /rti/rti_connext_dds-6.0.0/resource/xml/ \
+        /rti/rti_connext_dds-6.0.0/resource/app/lib/x64Linux2.6gcc4.4.5/ \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/bin/rtiroutingservice \
+        /rti/rti_connext_dds-6.0.0/bin/
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/resource/scripts/rticommon.sh \
+        /rti/rti_connext_dds-6.0.0/resource/scripts/
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/resource/scripts/rticommon_config.sh \
+        /rti/rti_connext_dds-6.0.0/resource/scripts/
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/resource/app/bin/x64Linux2.6gcc4.4.5/rtiroutingservice \
+        /rti/rti_connext_dds-6.0.0/resource/app/bin/x64Linux2.6gcc4.4.5/
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/resource/xml/RTI_ROUTING_SERVICE.xml \
+        /rti/rti_connext_dds-6.0.0/resource/xml/
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/resource/app/lib/x64Linux2.6gcc4.4.5/ \
+        /rti/rti_connext_dds-6.0.0/resource/app/lib/x64Linux2.6gcc4.4.5/
+COPY --from=builder \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/ \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+COPY --from=builder /src/RsShapesProcessor.xml /rti
+
+COPY --from=builder \
+        /build/libshapesprocessor.so \
+        /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/libshapesprocessor.so
+
+FROM ubuntu:18.04 as deploy
+
+COPY --from=pre-deploy \
+        /rti \
+        /rti
+
+ENV PATH /rti/rti_connext_dds-6.0.0/bin/:$PATH
+ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+
+ENTRYPOINT ["rtiroutingservice"]
+CMD ["-cfgFile", "/rti/RsShapesProcessor.xml", "-cfgName", "RsShapesAggregator", "-DSHAPES_PROC_KIND=aggregator_simple"]
