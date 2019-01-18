@@ -73,23 +73,12 @@ RUN mkdir /build && \
 FROM ubuntu:18.04 as pre-deploy
 RUN mkdir -p \
         /rti/rti_connext_dds-6.0.0/ \
-        /rti/rti_connext_dds-6.0.0/bin/ \
-        /rti/rti_connext_dds-6.0.0/resource/scripts/ \
         /rti/rti_connext_dds-6.0.0/resource/app/bin/x64Linux2.6gcc4.4.5/ \
         /rti/rti_connext_dds-6.0.0/resource/app/ \
         /rti/rti_connext_dds-6.0.0/resource/xml/ \
         /rti/rti_connext_dds-6.0.0/resource/app/lib/x64Linux2.6gcc4.4.5/ \
         /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
 
-COPY --from=builder \
-        /rti/rti_connext_dds-6.0.0/bin/rtiroutingservice \
-        /rti/rti_connext_dds-6.0.0/bin/
-COPY --from=builder \
-        /rti/rti_connext_dds-6.0.0/resource/scripts/rticommon.sh \
-        /rti/rti_connext_dds-6.0.0/resource/scripts/
-COPY --from=builder \
-        /rti/rti_connext_dds-6.0.0/resource/scripts/rticommon_config.sh \
-        /rti/rti_connext_dds-6.0.0/resource/scripts/
 COPY --from=builder \
         /rti/rti_connext_dds-6.0.0/resource/app/bin/x64Linux2.6gcc4.4.5/rtiroutingservice \
         /rti/rti_connext_dds-6.0.0/resource/app/bin/x64Linux2.6gcc4.4.5/
@@ -142,18 +131,24 @@ COPY --from=builder \
         /build/libshapesprocessor.so \
         /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/libshapesprocessor.so
 
-FROM ubuntu:18.04 as deploy
+RUN echo "root:x:0:0:user:/home:/bin/bash" > /passwd
+RUN echo "rtiuser:x:5:60:user:/home:/bin/bash" >> /passwd
+
+FROM gcr.io/distroless/cc as deploy
 
 COPY --from=pre-deploy \
         /rti \
         /rti
 
-RUN groupadd -g 999 rtiuser && \
-    useradd -r -u 999 -g rtiuser rtiuser
+COPY --from=pre-deploy \
+        /passwd \
+        /etc/passwd
+
 USER rtiuser
 
-ENV PATH /rti/rti_connext_dds-6.0.0/bin/:$PATH
-ENV LD_LIBRARY_PATH $LD_LIBRARY_PATH:/rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0/
+ENV PATH /rti/rti_connext_dds-6.0.0/resource/app/bin/x64Linux2.6gcc4.4.5/:$PATH
+ENV LD_LIBRARY_PATH /rti/rti_connext_dds-6.0.0/lib/x64Linux4gcc7.3.0
+
 
 ENTRYPOINT ["rtiroutingservice"]
 CMD ["-cfgFile", "/rti/RsShapesProcessor.xml", "-cfgName", "RsShapesAggregator", "-DSHAPES_PROC_KIND=aggregator_simple"]
