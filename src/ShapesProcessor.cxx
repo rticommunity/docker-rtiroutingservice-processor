@@ -196,7 +196,7 @@ void ShapesSplitter::on_data_available(
                     output_data_.get(),
                     sample.info());
         } else {
-            // propagate dispose 
+            // propagate dispose
             route.output<DynamicData>(0).write(
                     output_data_.get(),
                     sample.info());
@@ -229,7 +229,7 @@ const std::string ShapesProcessorPlugin::PROCESSOR_SPLITTER_NAME =
 ShapesProcessorPlugin::ShapesProcessorPlugin(
         const rti::routing::PropertySet&)
 {
-    
+
 }
 
 
