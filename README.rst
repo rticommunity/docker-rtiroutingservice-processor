@@ -34,8 +34,6 @@ Also, there are some articles in our community that will be of your interest:
 
 * \ |ConnextDDS and host driver|\
 
-.. _h3a271d91f1d561e71361a2e612d154:
-
 Requisites
 **********
 
@@ -54,15 +52,13 @@ Install Docker on Linux:
 
 * \ |Install Docker Ubuntu|\
 
-Finally, Docker Compose is needed for some steps. \ |Install Docker Compose|\ .
+Finally, Docker Compose is needed for some steps. \ |Install Docker Compose|\.
 
 Download the following RTI bundles:
 
 * RTI Host for Linux 64 bits: rti_connext_dds-6.0.0-pro-host-x64Linux.run
 
 * RTI Target libraries for x64Linux4gcc7.3.0: rti_connext_dds-6.0.0-pro-target-x64Linux4gcc7.3.0.rtipkg
-
-.. _h6353753524492e25656b801a717f5a5d:
 
 Hands on!
 *********
@@ -141,7 +137,7 @@ container. Docker compose is a better choice when:
 
 * We are in a development environment
 
-Docker for more information, \ |Docker Compose documentation|\ .
+Docker for more information, \ |Docker Compose documentation|\.
 
 To start the HTTP server, go to the “artifacts-server” folder and run:
 
@@ -176,13 +172,12 @@ Expected output:
 
 
 This will start the server, building the image described in the Dockerfile, in
-detached mode. The server will be available in \ |localhost|\ .
+detached mode. The server will be available in \ |localhost|\.
 
 \ |IMG1|\
 
 .. |IMG1| image:: static/Docker_for_CKO_1.png
-   :height: 226 px
-   :width: 588 px
+
 
 
 To stop the server, you need to run:
@@ -335,5 +330,4 @@ To learn more
 .. |RTI Docker Debugger| raw:: html
 
     <a href="https://github.com/rticommunity/rticonnextdds-docker-debugger" target="_blank">RTI Docker Debugger</a>
-
 
