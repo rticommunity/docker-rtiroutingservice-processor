@@ -1,26 +1,17 @@
-Running your new RS6 processor in Docker - CKO'19 Workshop
-##########################################################
+Running Routing Service Processors on Docker Containers
+#######################################################
 
 Introduction
 ************
 
-During a previous workshop, you built an Routing Service processor suing the
-new API provided in ConnextDDS 6.0.0.
+Routing Service Processors are event-oriented pluggable components that allow
+you to control the forwarding process that occurs within a RTI Routing Service
+Route.
 
-Routing Service Processor is a pluggable-component that allows controlling the
-forwarding process that occurs within Routes. Refer to the
-\ |RS Documentation|\ to learn more about how to implement and use custom
-``Processor`` plug-ins. For more information, you can read the *README.rst*
-file included under the *src* folder.
-
-During this workshop we will see how to build and deploy the Routing Service
-Processor using Docker.
-
-Pre-reading
-***********
-
-Some basic concepts about Docker will be assumed during this workshop. You can
-learn them from  these links:
+In this repository, we show how you to build and deploy a Routing Service
+Processor using Docker. Our instructions assume you have a basic understanding
+of Docker containers. However, if you are new to Docker, the following
+documents will give you enough information to get started:
 
 * \ |Getting started|\
 
@@ -28,21 +19,28 @@ learn them from  these links:
 
 * \ |Google Cloud best practices|\
 
-Also, there are some articles in our community that will be of your interest:
+Also, the RTI Community Portal contains some useful documents that cover the
+integration of DDS in a Docker environment:
 
 * \ |ConnextDDS and shared memory|\
 
 * \ |ConnextDDS and host driver|\
 
-Requisites
-**********
+Lastly, to learn more about how to implement and use custom processor plugins,
+please check the *README.rst* files in this repository directory and the
+\ |RS Documentation|\.
 
-We designed this workshop to be run on a **Linux machine**.
 
-The workshop was developed and tested using **Docker CE version 18.09.0**,
-build ``4d60db4``.
+Dependencies
+************
 
-Install Docker on Linux:
+Before diving into the hands-on instructions, make sure you install the
+necessary dependencies. The instructions, which we developed and tested
+using **Docker CE version 18.09.0** (build ``4d60db4``) assume you are using
+a **Linux host**.
+
+First, install Docker on your Linux host. Please, follow the appropriate
+instructions for your Linux distribution:
 
 * \ |Install Docker CentOS|\
 
@@ -52,50 +50,59 @@ Install Docker on Linux:
 
 * \ |Install Docker Ubuntu|\
 
-Finally, Docker Compose is needed for some steps. \ |Install Docker Compose|\.
+Note that you will need to use Docker Compose to run some scenarios. Please
+refer to the \ |Install Docker Compose|\.
 
-Download the following RTI bundles:
+Second, to run RTI Routing Service and your custom Processor plugin, download
+the following RTI packages (Connext 6 or above):
 
-* RTI Host for Linux 64 bits: rti_connext_dds-6.0.0-pro-host-x64Linux.run
+* RTI Host for 64-bit Linux: rti_connext_dds-6.0.0-pro-host-x64Linux.run
 
-* RTI Target libraries for x64Linux4gcc7.3.0: rti_connext_dds-6.0.0-pro-target-x64Linux4gcc7.3.0.rtipkg
+* RTI Target Libraries for x64Linux4gcc7.3.0: rti_connext_dds-6.0.0-pro-target-x64Linux4gcc7.3.0.rtipkg
 
 Hands on!
 *********
 
-We will use Docker for three tasks during this workshop:
+In this manual, we will use Docker to:
 
-* Start a basic dependencies server
+* Setup a basic dependency management server.
 
-* Build the RTI Routing Service Processor
+* Build the RTI Routing Service Processor.
 
-* Deploy RTI Routing Service using the built processor in Docker
+* Deploy RTI Routing Service and the custom Processor on a Docker container.
 
-After installing all the requisites described in the “Requisites” section,
-you can clone the repository in your machine.
-
+To get started, create an empty directory to prepare the workspace to run
+these scenarios:
 
 .. code-block::
 
-    git clone <URL to the repository> rs-cko19
+    mkdir docker_example
 
-This will create a folder called rs-cko19 with all the content from the
-repository. At the same level where you cloned the repository, create a folder
-called “artifacts” and copy there the files:
+Next, clone the repository within the recently created folder:
 
-* rti_connext_dds-6.0.0-pro-host-x64Linux.run
+.. code-block::
 
-* rti_connext_dds-6.0.0-pro-target-x64Linux4gcc7.3.0.rtipkg
+    cd docker_example
+    git clone https://github.com/rticommunity/docker-rtiroutingservice-processor rs-docker
 
-The final folder structure should be this one:
+Lastly, create a folder called ``artifacts`` and copy the following files into
+it:
+
+.. code-block::
+
+    mkdir artifacts
+    cp /path/to/rti_connext_dds-6.0.0-pro-host-x64Linux.run ./artifacts/
+    cp /path/to/rti_connext_dds-6.0.0-pro-target-x64Linux4gcc7.3.0.rtipkg ./artifacts/
+
+The final directory structure should be as follows:
 
 .. code-block::
 
     ├── artifacts
     │   ├── rti_connext_dds-6.0.0-pro-host-x64Linux.run
     │   └── rti_connext_dds-6.0.0-pro-target-x64Linux4gcc7.3.0.rtipkg
-    └── rs-cko19
-        ├── artifactor-server
+    └── rs-docker
+        ├── artifacts-server
         │   ├── docker-compose.yml
         │   └── Dockerfile
         ├── Dockerfile
@@ -108,44 +115,39 @@ The final folder structure should be this one:
             └── ShapesProcessor.hpp
 
 
-Start a basic dependencies manager server
-=========================================
+Setting Up Dependency Management Server
+=======================================
 
-During this first step, we will start a basic HTTP server to store the RTI
-bundles. We will use this server to get Connext DDS as a third-party
-dependency.
+The first step in this manual is to setup a basic HTTP server to provide the
+RTI installation packages.
 
-**Important: this server must never be used in a production environment** . It
-is only for development/demo purposes. For production, you should use systems
-like \ |Artifactory|\ .
+Under ``rs-docker/artifactor-server`` you will find two files:
 
-In the folder “artifacts-server” you will find two files:
+* ``Dockerfile``, which specifies how create the Docker image for the server.
 
-* docker-compose.yml
+* ``docker-compose.yml``, which specifies how to execute the Docker image.
 
-* Dockerfile
+Usually, we use ``docker run`` to start and run a Docker container. However,
+in this example we use ``docker-compose``, which is better suited for scenarios
+where:
 
-The Dockerfile defines how the image for the server is created.
-The ``docker-compose.yml`` file how the image should be executed.
+* More than one container is needed to run the application.
 
-The Docker \ |Docker run command|\  is used when you want to start running one
-container. Docker compose is a better choice when:
+* A service must be executed.
 
-* More than one container is needed in order to run the application
+* We are in a development environment.
 
-* A service will be executed
+For more information on `docker-compose`, please refer to
+\ |Docker Compose documentation|\.
 
-* We are in a development environment
-
-Docker for more information, \ |Docker Compose documentation|\.
-
-To start the HTTP server, go to the “artifacts-server” folder and run:
+Therefore, to start the HTTP server, simply go to the ``artifacts-server``
+folder and run:
 
 .. code-block::
 
     docker-compose up --build -d
 
-Expected output:
+You should see the following output:
 
 .. code-block::
 
@@ -172,44 +174,42 @@ Expected output:
 
 
 This will start the server, building the image described in the Dockerfile, in
-detached mode. The server will be available in \ |localhost|\.
+detached mode. You should be able to access the contents of the server
+on \ |localhost|\.
 
 \ |IMG1|\
 
 .. |IMG1| image:: static/Docker_for_CKO_1.png
 
-
-
-To stop the server, you need to run:
+To stop the server, run:
 
 .. code-block::
 
     docker-compose stop
 
-Build the Docker image
-======================
+Building Docker Image
+=====================
 
-After starting the dependencies manager server, you can start to build the
-Docker image to deploy.
+Once you have setup the dependency management server, you can start to build
+the Docker image where we will deploy the Routing Service Processor.
 
-To build the Docker image, you should go to the “rs-cko19” folder. Then, you
-should run:
+To build the Docker image, run the following commands from the ``rs-docker``
+directory:
 
 .. code-block::
 
     export DOCKER_BUILDKIT=1
     docker build -t routingservice-processor . --network="host"
 
-If you are using Docker 18.09 or newer, you can enable some build enhancements.
-For this example, we enabled the new “builkit” frontend setting the
-``DOCKER_BUILDKIT`` environment variable.
+If you are using Docker version 18.09 or newer, you can leverage new build
+enhancements. In particular, in this example we enable the new "builkit"
+front end setting using the ``DOCKER_BUILDKIT`` environment variable.
 
-For this example, we need to set the parameter “--network” because we are
-running the dependencies manager server in *localhost*. If we don’t specify
-that option, the container will try to download the RTI bundles from its
-localhost and the container build will fail.
+Also, note we need to set the parameter ``--network="host"`` to ensure
+that the resources the container depends on (i.e., those available on the
+dependency management server) are available.
 
-After running some commands, the output will be:
+After building the image, you should see the following output:
 
 .. code-block::
 
@@ -218,42 +218,42 @@ After running some commands, the output will be:
     => => writing image sha256:2c45d2ea992ac32676898092ed2af3668c855cd20f87172d06a36f1ccd8b7613       0.0s
     => => naming to docker.io/library/routingserviceprocessor
 
-Run the Docker image
+Running Docker Image
 ====================
 
-To run the Docker image, you only need to run the following command:
+To run the Docker image, execute the following command:
 
 .. code-block::
 
     docker run --name routingservice  -d routingserviceprocessor
 
 
-This will run a Docker container in detached mode with Routing Service using
-this arguments:
+This will run a Docker container in detached mode, which will execute RTI
+Routing Service with the following arguments:
 
 .. code-block::
 
-    -cfgFile /rti/RsShapesProcessor.xml -cfgName RsShapesAggregator \
+    -cfgFile /rti/RsShapesProcessor.xml \
+    -cfgName RsShapesAggregator \
     -DSHAPES_PROC_KIND=aggregator_simple
 
-The effect of these parameters is described in the readme file under the
-``src`` folder: Routing Service will be running and you can follow the steps
-described in the "Running" section to test the created plugin.
+For more information on the Routing Service configuration, please check the
+``README.rst`` file under the ``src`` directory.
 
-You can overwrite these parameters from the command line. For instance, you can
-get the help options:
+You can overwrite the default execution parameters by appending new arguments
+to the ``docker run`` command as follows:
 
 .. code-block::
 
     docker run  -ti routingserviceprocessor -help
 
-You can list your containers using the command:
+To list your running containers run:
 
 .. code-block::
 
     docker ps
 
-To stop your container, run:
+To stop the Docker container, run:
 
 .. code-block::
 
@@ -268,21 +268,21 @@ To learn more
 
 .. |RS Documentation| raw:: html
 
-    <a href="https://community.rti.com/static/documentation/connext-dds/current/doc/api/connext_dds/api_cpp/group__RTI__RoutingServiceProcessorModule.html" target="_blank">SDK documentation </a>
+    <a href="https://community.rti.com/static/documentation/connext-dds/current/doc/api/connext_dds/api_cpp/group__RTI__RoutingServiceProcessorModule.html" target="_blank">Routing Service SDK documentation</a>
 
 .. |Getting started| raw:: html
 
     <a href="https://docs.docker.com/get-started/" target="_blank">Docker
-    official documentation: get started</a>
+    Documentation: Get Started</a>
 
 .. |Docker overview| raw:: html
 
     <a href="https://docs.docker.com/engine/docker-overview/" target="_blank">
-    Docker official documentation: overview</a>
+    Docker Documentation: Overview</a>
 
 .. |Google Cloud best practices| raw:: html
 
-    <a href="https://cloud.google.com/blog/products/gcp/7-best-practices-for-building-containers" target="_blank">Google Cloud: 7 best practices for building containers</a>
+    <a href="https://cloud.google.com/blog/products/gcp/7-best-practices-for-building-containers" target="_blank">Google Cloud: 7 Best Practices for Building Containers</a>
 
 .. |ConnextDDS and shared memory| raw:: html
 
@@ -310,7 +310,7 @@ To learn more
 
 .. |Install Docker Compose| raw:: html
 
-    <a href="https://docs.docker.com/compose/install/" target="_blank">The instructions to install Docker Compose are available in the official documentation</a>
+    <a href="https://docs.docker.com/compose/install/" target="_blank">instructions on how to install Docker Compose in Docker Documentation</a>
 
 .. |Artifactory| raw:: html
 
@@ -322,7 +322,7 @@ To learn more
 
 .. |Docker Compose documentation| raw:: html
 
-    <a href="https://docs.docker.com/compose/" target="_blank">visit the official Docker Compose documentation</a>
+    <a href="https://docs.docker.com/compose/" target="_blank">Docker Documentation: Docker Compose</a>
 
 .. |localhost| raw:: html
 
@@ -330,5 +330,5 @@ To learn more
 
 .. |RTI Docker Debugger| raw:: html
 
-    <a href="https://github.com/rticommunity/rticonnextdds-docker-debugger" target="_blank">RTI Docker Debugger</a>
+    <a href="https://github.com/rticommunity/docker-rticonnextdds-debugger" target="_blank">RTI Docker Debugger</a>
 
